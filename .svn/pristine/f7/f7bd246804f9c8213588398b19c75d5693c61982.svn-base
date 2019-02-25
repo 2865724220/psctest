@@ -1,0 +1,224 @@
+<template>
+  <div class="photo">
+    <h1>发现身边的投资机会</h1>
+    <div class="photo-input">
+      <input class="photo-file" type="file" name="upload" accept="image/*"  mutiple="mutiple" @change="fileImg">
+      <div class="photo-button">
+        <img class="photo-logo" src="../../assets/photo-w.png" alt="">
+        <span>拍照识财</span>
+      </div>
+    </div>
+    <div v-if="text">图片上传中...</div>
+    <!--<img :src="imgBase64" alt="" id="preview">-->
+  </div>
+</template>
+
+<script>
+import axios from 'axios'
+import { EXIF } from 'exif-js'
+
+export default {
+  name: 'photo',
+  mounted(){
+
+  },
+  data () {
+    return {
+      imgBase64: '',
+      text:false
+    }
+  },
+  created () {
+    localStorage.clear()
+    window.aa = ''
+    window.localStorage.clear()
+    // localStorage.clear()
+  },
+  methods: {
+    fileImg (e) {
+      let that = this
+      // localStorage.setItem('imgbase', reader.result)
+      console.log(e.target.files[0])
+      let Orientation
+      let file = e.target.files[0]
+
+
+      // this.imgPreview(e.target.files[0])
+      if(file){
+        EXIF.getData(file, function(){
+          // var a = EXIF.pretty(this)
+          // alert(a[14])
+          Orientation = EXIF.getTag(this, "Orientation")
+          // alert(Orientation)
+        });
+      }
+
+
+
+      let reader = new FileReader()
+
+      let img = new Image()
+
+      reader.readAsDataURL(e.target.files[0])
+
+      let canvas = document.createElement('canvas')
+      let ctx = canvas.getContext('2d')
+
+      reader.onload = (ev) => {
+        // alert("图片转base64:"+reader.result)
+        // this.imgBase64 = reader.result
+        img.src = ev.target.result
+        img.onload = function () {
+          var imgWidth = this.width
+          var imgHeight = this.height
+
+          console.log(this.width)
+          console.log(this.height)
+          // alert(this.width)
+          // alert(this.height)
+          let ratio = imgWidth / imgHeight
+          if (imgWidth > imgHeight && imgWidth > 600) {
+            imgWidth = 400
+            imgHeight = Math.ceil(400 / ratio)
+          } else if (imgWidth < imgHeight && imgHeight > 900) {
+            imgWidth = Math.ceil(200 * ratio)
+            imgHeight = 200
+          }
+
+
+          canvas.width = imgWidth
+          canvas.height = imgHeight
+
+          if (Orientation && Orientation != 1) {
+            switch (Orientation) {
+              case 6:
+                canvas.width = imgHeight
+                canvas.height = imgWidth
+                ctx.rotate(Math.PI / 2)
+                ctx.drawImage(this, 0, -imgHeight, imgWidth, imgHeight);
+                break;
+              case 3:
+                ctx.rotate(Math.PI);
+                ctx.drawImage(this, -imgWidth, -imgHeight, imgWidth, imgHeight);
+                break;
+              case 8:     // 旋转-90度
+                canvas.width = imgHeight;
+                canvas.height = imgWidth;
+                ctx.rotate(3 * Math.PI / 2);
+                ctx.drawImage(this, -imgWidth, 0, imgWidth, imgHeight);
+                break;
+            }
+          } else {
+            ctx.drawImage(this, 0, 0, imgWidth, imgHeight);
+          }
+          this.imgBase64 = canvas.toDataURL("image/jpeg", 0.9)
+          // console.log(this.imgBase64)
+          window.aa = this.imgBase64
+          // console.log(window.aa)
+          var len = this.imgBase64.length
+          var size = len - (len / 8) * 2
+          console.log(size)
+          // alert(size)
+          that.$router.push('/result/industry')
+
+          // reader.onload = (ev) => {
+          //   // alert("图片转base64:"+reader.result)
+          //   this.imgBase64 = reader.result
+          //   try {
+          //     // localStorage.setItem('imgBase64', reader.result)
+          //     window.aa = reader.result
+          //   } catch (error) {
+          //     // console.log("存储localstorage失败"+error)
+          //
+          //   }
+
+          // try {
+          //   // localStorage.setItem('imgBase64', reader.result)
+          //   // window.aa = reader.result
+          // } catch (error) {
+          //   console.log("存储localstorage失败"+error)
+          // }
+          // alert('base64全局存储完成')
+          // this.$router.push('/result/industry')
+          // alert('push完成')
+        }
+
+
+        // alert('base64全局存储完成')
+        // this.$router.push('/result/industry')
+        // alert('push完成')
+
+      }
+
+    },
+    imgPreview(file){
+      // let _this = this
+      let Orientation
+      console.log(file)
+      //去获取拍照时的信息，解决拍出来的照片旋转问题
+      EXIF.getData(file, function(){
+        var a = EXIF.pretty(this)
+        // alert(a[14])
+        // alert(a[Orientation])
+        console.log(a)
+        Orientation = EXIF.getTag(this, "Orientation")
+        // alert(EXIF.getTag(this, "Orientation"))
+        alert(Orientation)
+
+      });
+      console.log(Orientation)
+
+
+    }
+  }
+}
+</script>
+
+<!-- Add "scoped" attribute to limit CSS to this component only -->
+<style scoped>
+.photo{
+  background: #fff;
+  padding:20px;
+}
+.photo h1{
+  display: block;
+  font-size:20px;
+  padding:10px 0;
+}
+.photo-input{
+  display: block;
+  position: relative;
+  height:80px;
+  margin:50px 0;
+}
+.photo-file{
+  display:block;
+  width:100%;
+  height:50px;
+  position: absolute;
+  z-index:2;
+  opacity: 0;
+}
+.photo-button{
+  display: flex;
+  position: absolute;
+  top: 0;
+  background: #4CAF50;
+  width: 80%;
+  border-radius: 50px;
+  height: 50px;
+  left: 10%;
+  align-items: center;
+  justify-content: center;
+}
+.photo-button img{
+  display: block;
+  width:34px;
+}
+.photo-button span{
+  display: block;
+  font-size:16px;
+  color:#fff;
+  padding:0 8px;
+}
+</style>

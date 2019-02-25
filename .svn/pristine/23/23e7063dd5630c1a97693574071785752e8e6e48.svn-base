@@ -1,0 +1,670 @@
+<template>
+  <div class="all">
+      <div>
+          <div class='stockInfo2'>
+            <div>{{gupiao}}</div>
+          </div>
+          <div class='stockInfo3'>
+            <div>股票代码: {{gupiaocode}}</div>
+          </div>
+      </div>
+      <div class='echar'>
+          <div id="myChart" style="width:100%;height:200px;paddingLeft:0px"></div>
+          <!-- <div style="width:30%;height:200px;paddingLeft:0px;backgroundColor:#ffc069">未来预测区</div> -->
+      </div>
+
+      <div class='xsLine'>
+        相似个股K线
+      </div>
+      <div class='xstitle'>
+        <div class='xstitleLeft'>
+          <div class='stockInfo2'>
+              {{xsgupiao}}
+          </div>
+          <div class='stockInfo3'>
+              股票代码: {{xsgupiaocode}}
+          </div>
+        </div>
+        <div class='stockInfo4'>
+            相似度: {{xsdu}}
+        </div>
+      </div>
+      <div class='echar'>
+          <div id="yourChart" style="width:75%;height:150px;paddingLeft:0px"></div>
+          <div id="hisChart" style="width:25%;height:150px;paddingLeft:0px"></div>
+      </div>
+  </div>
+</template>
+
+<script>
+import echarts from 'echarts'
+import axios from 'axios'
+import { debug } from 'util';
+
+export default {
+  data(){
+    return{
+      gupiao: '查询中',
+      xsgupiao: '查询中',
+      gupiaocode: '',
+      xsgupiaocode: '',
+      datelist: [],
+      valuebiglist: [],
+      datelist2: [],
+      valuebiglist2: [],
+      datelist3: [],
+      valuebiglist3: [],
+      xsdu: '',
+      max:'',
+      min:'',
+    }
+  },
+  mounted() {
+    this.drawLine();
+    this.fetchdata();
+  },
+  watch:{
+    // max: function(){
+    //   // debugger
+    //   console.log('watch')
+    //   this.drawLinexs()
+    //   this.drawLinexsyuce()
+    // },
+    // min: function(){
+    //   this.drawLinexs()
+    //   this.drawLinexsyuce()
+    // },
+  },
+  methods: {
+    fetchdata(){  //用来画相似k线最大最小值
+      debug
+      var that = this
+      var valuelist = []
+      that.xsgupiaocode = localStorage.getItem('xscode')
+      axios.post('https://test-paladin.pingan.com.cn:10094/app/F012',{
+        "symbol":localStorage.getItem('xscode'),
+        "startDate":localStorage.getItem('xsstartDate'),
+        // "period":localStorage.getItem('xspreday'),
+        "endDate":localStorage.getItem('xsendDate'),
+        "lang":null,
+        "orgId":"310003",
+        "reqChl":"03",
+        "reqTime":"20180727150130123",
+        "serNum":"1234567890",
+        "sign":"SHA256withRSA2048",
+        "token":"D688D2555ED94C7285D26BDF4B13D08F",
+        "tranCode":"F012",
+        "version":"100"
+      })
+      .then(function(response){
+        window.xsLine = response.data.indexDtl
+        // debugger
+        console.log(window.xsLine.indexDtl)
+        that.xsgupiao = response.data.indexDtl.sname
+        response.data.indexDtl.indexList.map((value,key)=>{
+          if(value.tOpen!=="0.0000"&&value.tClose!=="0.0000"&&value.low!=="0.0000"&&value.high!=="0.0000"){
+            valuelist.push(value.low)
+            valuelist.push(value.high)
+          }
+        })
+
+        axios.post('https://test-paladin.pingan.com.cn:10094/app/F012',{
+          "symbol":localStorage.getItem('xscode'),
+          "endDate":localStorage.getItem('xspredict'),
+          "startDate":localStorage.getItem('xsendDate'),
+          "lang":null,
+          "orgId":"310003",
+          "reqChl":"03",
+          "reqTime":"20180727150130123",
+          "serNum":"1234567890",
+          "sign":"SHA256withRSA2048",
+          "token":"D688D2555ED94C7285D26BDF4B13D08F",
+          "tranCode":"F012",
+          "version":"100"
+        })
+        .then(function(response){
+          // debugger
+          window.ycLine = response.data.indexDtl
+          response.data.indexDtl.indexList.map((value,key)=>{
+            if(value.tOpen!=="0.0000"&&value.tClose!=="0.0000"&&value.low!=="0.0000"&&value.high!=="0.0000"){
+              valuelist.push(value.low)
+              valuelist.push(value.high)
+            }
+          })
+          that.max = Math.max.apply(null,valuelist)
+          that.min = Math.min.apply(null,valuelist)
+          that.drawLinexs(),
+          that.drawLinexsyuce()
+        })
+      })
+      // .then(function(response){
+      //   that.xsgupiaocode = localStorage.getItem('xscode')
+      //   axios.post('https://test-paladin.pingan.com.cn:10094/app/F012',{
+      //     "symbol":localStorage.getItem('xscode'),
+      //     "endDate":localStorage.getItem('xspredict'),
+      //     "startDate":localStorage.getItem('xsendDate'),
+      //     "lang":null,
+      //     "orgId":"310003",
+      //     "reqChl":"03",
+      //     "reqTime":"20180727150130123",
+      //     "serNum":"1234567890",
+      //     "sign":"SHA256withRSA2048",
+      //     "token":"D688D2555ED94C7285D26BDF4B13D08F",
+      //     "tranCode":"F012",
+      //     "version":"100"
+      //   })
+      //   .then(function(response){
+      //     debugger
+      //     window.ycLine = response.data.indexDtl
+      //     response.data.indexDtl.indexList.map((value,key)=>{
+      //       if(value.tOpen!=="0.0000"&&value.tClose!=="0.0000"&&value.low!=="0.0000"&&value.high!=="0.0000"){
+      //         valuelist.push(value.low)
+      //         valuelist.push(value.high)
+      //       }
+      //     })
+      //     that.max = Math.max.apply(null,valuelist)
+      //     that.min = Math.min.apply(null,valuelist)
+      //   })
+      // }).then(function(){
+      //   debugger
+      //   that.drawLinexs(),
+      //   that.drawLinexsyuce()
+      // })
+    },
+
+    drawLine() {    //用来画上方k线
+      console.log(localStorage.getItem("stock_code"))
+      var that = this
+      that.gupiao = localStorage.getItem('stock_name')
+      that.gupiaocode = localStorage.getItem('stock_code').split('.')[0]
+      
+      axios.post('https://test-paladin.pingan.com.cn:10094/app/F012',{
+        "symbol":that.gupiaocode,
+        "startDate":"20180101",
+        "endDate":"20190101",
+        "lang":null,
+        "orgId":"310003",
+        "reqChl":"03",
+        "reqTime":"20180727150130123",
+        "serNum":"1234567890",
+        "sign":"SHA256withRSA2048",
+        "token":"D688D2555ED94C7285D26BDF4B13D08F",
+        "tranCode":"F011",
+        "version":"100"
+      }).then(function(response){
+        response.data.indexDtl.indexList.map((value,key)=>{
+          value.tOpen!=="0.0000"&&value.tClose!=="0.0000"&&value.low!=="0.0000"&&value.high!=="0.0000"&&
+          that.datelist.push(value.tDate)
+        })
+        response.data.indexDtl.indexList.map((value,key)=>{
+          var valuelist = []
+          if(value.tOpen!=="0.0000"&&value.tClose!=="0.0000"&&value.low!=="0.0000"&&value.high!=="0.0000"){
+            valuelist.push(value.tOpen)
+            valuelist.push(value.tClose)
+            valuelist.push(value.low)
+            valuelist.push(value.high)
+            that.valuebiglist.push(valuelist)
+          }
+        })
+
+      let chartK = echarts.init(document.getElementById("myChart"))
+
+      var option = {
+        backgroundColor: '#F6F8FB',
+        grid: {
+          top: '5%',
+          left: '10%',
+          right: '5%',
+          bottom: '10%'
+        },
+        // tooltip: {
+        //   trigger: 'axis',
+        //   axisPointer: {
+        //     animation: false,
+        //     type: 'cross',
+        //     lineStyle: {
+        //       color: '#376df4',
+        //       width: 1,
+        //       opacity: 1
+        //     }
+        //   }
+        // },
+        xAxis: {
+          data: that.datelist,
+          type: 'category',
+          boundaryGap: false,
+          axisLine: {
+            lineStyle: {
+              color: '#fff'
+            }
+          },
+          splitLine: {
+            show: false
+          },
+          axisLabel: {
+            show: true,
+            textStyle: {
+              color: '#6B7D97',
+              fontSize: '10'
+            }
+          },
+        },
+        yAxis: {
+          scale: true,
+          type: 'value',
+          axisLine: {
+            lineStyle: {
+              color: '#fff'
+            }
+          },
+          axisLabel: {
+            show: true,
+            textStyle: {
+              color: '#6B7D97',
+              fontSize: '10'
+            }
+          },
+          splitLine: {
+            show: true,
+            lineStyle: {
+              color: '#fff',
+              width: 1
+            }
+          },
+          splitArea: {
+            show: true,
+            areaStyle: {
+              color: '#F6F8FB'
+            }
+          }
+        },
+
+        dataZoom: [
+          {
+              type: 'inside',
+              start: 0,
+              end: 100,
+              minValueSpan: 10
+          },
+          {
+              show: false,
+              type: 'slider',
+              bottom: 0,
+              start: 0,
+              end: 100,
+              minValueSpan: 10
+          }
+        ],
+        animation: false,
+        series: [
+          {
+            type: 'candlestick',
+            name: '日K',
+            data: that.valuebiglist,
+            itemStyle: {
+              normal: {
+                color: '#FD1050',
+                color0: '#0CF49B',
+                borderColor: '#FD1050',
+                borderColor0: '#0CF49B'
+              }
+            }
+          },
+        ]
+      };
+      chartK.setOption(option)
+      })
+
+    },
+
+    drawLinexs(){
+      var that = this
+      that.xsdu = parseFloat(localStorage.getItem('xsdu')).toFixed(2)
+      that.xsgupiaocode = localStorage.getItem('xscode')
+      // axios.post('https://test-paladin.pingan.com.cn:10094/app/F012',{
+      //   "symbol":localStorage.getItem('xscode'),
+      //   "startDate":localStorage.getItem('xsstartDate'),
+      //   "endDate":localStorage.getItem('xsendDate'),
+      //   "lang":null,
+      //   "orgId":"310003",
+      //   "reqChl":"03",
+      //   "reqTime":"20180727150130123",
+      //   "serNum":"1234567890",
+      //   "sign":"SHA256withRSA2048",
+      //   "token":"D688D2555ED94C7285D26BDF4B13D08F",
+      //   "tranCode":"F011",
+      //   "version":"100"
+      // }).then(function(response){
+        // console.log(response)
+        // debugger
+      let xsLine = window.xsLine
+      console.log(xsLine)
+      that.xsgupiao = xsLine.sname
+      that.datelist2 = []
+      xsLine.indexList.map((value,key)=>{
+        that.datelist2.push(value.tDate)
+      })
+      that.valuebiglist2 = []
+
+      xsLine.indexList.map((value,key)=>{
+        var valuelist = []
+        valuelist.push(value.tOpen)
+        valuelist.push(value.tClose)
+        valuelist.push(value.low)
+        valuelist.push(value.high)
+        // debugger
+        that.valuebiglist2.push(valuelist)
+      })
+
+      let chartK2 = echarts.init(document.getElementById("yourChart"))
+      
+      // debugger
+      var option = {
+        backgroundColor: '#F6F8FB',
+        grid: {
+          top: '5%',
+          left: '10%',
+          right: '0%',
+          bottom: '10%'
+        },
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: {
+            animation: false,
+            type: 'cross',
+            lineStyle: {
+              color: '#376df4',
+              width: 1,
+              opacity: 1
+            }
+          }
+        },
+        xAxis: {
+          data: that.datelist2,
+          type: 'category',
+          boundaryGap: false,
+          axisLine: {
+            lineStyle: {
+              color: '#fff'
+            }
+          },
+          splitLine: {
+            show: false
+          },
+          axisLabel: {
+            show: true,
+            textStyle: {
+              color: '#6B7D97',
+              fontSize: '10'
+            }
+          },
+        },
+        yAxis: {
+          scale: true,
+          type: 'value',
+          max:(that.max&&that.max!==0)&&that.max,
+          min:(that.min&&that.min!==0)&&that.min,
+          axisLine: {
+            lineStyle: {
+              color: '#fff'
+            }
+          },
+          axisLabel: {
+            show: true,
+            textStyle: {
+              color: '#6B7D97',
+              fontSize: '10'
+            }
+          },
+          splitLine: {
+            show: true,
+            lineStyle: {
+              color: '#fff',
+              width: 1
+            }
+          },
+          splitArea: {
+            show: true,
+            areaStyle: {
+              color: '#F6F8FB'
+            }
+          }
+        },
+
+        dataZoom: [
+          {
+              type: 'inside',
+              start: 0,
+              end: 100,
+              minValueSpan: 10
+          },
+          {
+              show: false,
+              type: 'slider',
+              bottom: 0,
+              start: 0,
+              end: 100,
+              minValueSpan: 10
+          }
+        ],
+        animation: false,
+        series: [
+          {
+            type: 'candlestick',
+            name: '日K',
+            data: that.valuebiglist2,
+            itemStyle: {
+              normal: {
+                color: '#FD1050',
+                color0: '#0CF49B',
+                borderColor: '#FD1050',
+                borderColor0: '#0CF49B'
+              }
+            }
+          },
+        ]
+      };
+      chartK2.setOption(option)
+      // })
+    },
+
+    drawLinexsyuce(){
+      var that = this
+      // axios.post('https://test-paladin.pingan.com.cn:10094/app/F012',{
+      //   "symbol":localStorage.getItem('xscode'),
+      //   "endDate":localStorage.getItem('xspredict'),
+      //   "startDate":localStorage.getItem('xsendDate'),
+      //   "lang":null,
+      //   "orgId":"310003",
+      //   "reqChl":"03",
+      //   "reqTime":"20180727150130123",
+      //   "serNum":"1234567890",
+      //   "sign":"SHA256withRSA2048",
+      //   "token":"D688D2555ED94C7285D26BDF4B13D08F",
+      //   "tranCode":"F011",
+      //   "version":"100"
+      // }).then(function(response){
+        // debugger
+      let ycLine = window.ycLine
+      that.datelist3=[]
+      ycLine.indexList.map((value,key)=>{
+        that.datelist3.push(value.tDate)
+      })
+      that.valuebiglist3 = []
+      ycLine.indexList.map((value,key)=>{
+        var valuelist = []
+        valuelist.push(value.tOpen)
+        valuelist.push(value.tClose)
+        valuelist.push(value.low)
+        valuelist.push(value.high)
+        that.valuebiglist3.push(valuelist)
+      })
+
+      let chartK3 = echarts.init(document.getElementById("hisChart"))
+
+      var option = {
+        backgroundColor: '#85a5ff',
+        grid: {
+          top: '5%',
+          left: '10%',
+          right: '5%',
+          bottom: '10%'
+        },
+        // tooltip: {
+        //   trigger: 'axis',
+        //   axisPointer: {
+        //     animation: false,
+        //     type: 'cross',
+        //     lineStyle: {
+        //       color: '#376df4',
+        //       width: 1,
+        //       opacity: 1
+        //     }
+        //   }
+        // },
+        xAxis: {
+          show:false,
+          data: that.datelist3,
+          type: 'category',
+          boundaryGap: false,
+          axisLine: {
+            lineStyle: {
+              color: '#fff'
+            }
+          },
+          splitLine: {
+            show: false
+          },
+          axisLabel: {
+            show: false,
+            textStyle: {
+              color: '#6B7D97',
+              fontSize: '10'
+            }
+          },
+        },
+        yAxis: {
+          show:false,
+          scale: true,
+          type: 'value',
+          max:(that.max&&that.max!==0)&&that.max,
+          min:(that.min&&that.min!==0)&&that.min,
+          axisLine: {
+            lineStyle: {
+              color: '#fff'
+            }
+          },
+          axisLabel: {
+            show: false,
+            textStyle: {
+              color: '#6B7D97',
+              fontSize: '10'
+            }
+          },
+          splitLine: {
+            show: true,
+            lineStyle: {
+              color: '#fff',
+              width: 1
+            }
+          },
+          splitArea: {
+            show: true,
+            areaStyle: {
+              color: '#85a5ff'
+            }
+          }
+        },
+
+        dataZoom: [
+          {
+              type: 'inside',
+              start: 0,
+              end: 100,
+              minValueSpan: 10
+          },
+          {
+              show: false,
+              type: 'slider',
+              bottom: 0,
+              start: 0,
+              end: 100,
+              minValueSpan: 10
+          }
+        ],
+        animation: false,
+        series: [
+          {
+            type: 'candlestick',
+            name: '日K',
+            data: that.valuebiglist3,
+            itemStyle: {
+              normal: {
+                color: '#FD1050',
+                color0: '#0CF49B',
+                borderColor: '#FD1050',
+                borderColor0: '#0CF49B'
+              }
+            }
+          },
+        ]
+      };
+      chartK3.setOption(option)
+      // })
+    }
+  }
+}
+</script>
+
+<style scoped>
+.echar{
+    display: flex;
+    padding-bottom: 20px;
+}
+.all{
+    padding:10px 16px;
+  }
+.top{
+    display: flex;
+    font-size: 16px;
+}
+.stockInfo{
+    display: flex;
+    flex:1;
+    height:30px;
+    font-size: 16px;
+}
+.stockInfo2{
+    font-size:20px;
+}
+.stockInfo3{
+    font-size:12px;
+}
+.stockInfo4{
+    font-size:16px;
+}
+.xsLine{
+  background-color: antiquewhite;
+  font-size:16px;
+  padding:10px 0 10px 0;
+}
+.xstitle{
+  /* background-color: azure; */
+  display:flex;
+  flex-direction: row;
+}
+.xstitleLeft{
+  flex:1
+}
+.mychart{
+    width:300px;
+    height:300px;
+}
+.indus-title-a{
+  display: block;
+  float: right;
+  font-size:14px;
+  color:#11089c;
+}
+</style>
+

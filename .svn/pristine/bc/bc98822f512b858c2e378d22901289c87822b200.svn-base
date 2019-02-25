@@ -1,0 +1,310 @@
+<template>
+    <div>
+        <div class='top clearfix'>
+            <div class="photo-img-wrap">
+              <img class="photo-img" :src="imgBase64" alt="">
+              <div class="scan" v-if="imgScan"></div>
+            </div>
+            <div class='topright'>
+              <a class="search" href="#/">重新识别</a>
+              <div class="key-words">识别物体: {{keyw}}</div>
+              <div class="key-words">所属行业: {{indus}}</div>
+            </div>
+        </div>
+
+        <div class='main' v-if="loadingpic=='two'">
+            <div class='linkGroup'>
+                <router-link to='/result/stock' class='link' v-if="loadingkline==false">股票</router-link>
+                <div v-if="loadingkline==true" class='link'>股票查询中</div>
+                <router-link to='/result/industry' class='link'>行业</router-link>
+                <router-link to='/result/fund' class='link'>基金</router-link>
+            </div>
+            <router-view></router-view>
+        </div>
+
+        <div v-if="loadingpic=='one'">
+          <div class="loading">数据加载中...</div>
+        </div>
+
+        <div v-if="loadingpic=='three'">
+          <div class="loading">未找到相关股票/基金</div>
+          <div class="loading2">您可以直接输入股票代码，获取相似K线</div>
+        </div>
+
+        <div class='shuru' v-if="loadingpic=='three'">
+          <input type="text" class='shuru1' id='shuru1'/>
+          <div class='shuru2' @click="search()">搜索</div>
+        </div>
+
+        <div>
+          <router-link to='/result/stock' class='link' v-if="loadingshuru==2">股票</router-link>
+          <router-view v-if="loadingshuru==2"></router-view>
+
+          <div v-if="loadingshuru==1" class='link'>股票查询中</div>
+        </div>
+    </div>
+</template>
+
+<script>
+import axios from 'axios'
+import EXIF from 'exif-js'
+
+export default {
+
+  data () {
+    return {
+      imgBase64: window.aa,
+      keyw: '处理中...',
+      indus: '处理中...',
+      loadingkline: true,
+      loadingpic: 'one',
+      loadingText:'',
+      loadingshuru:0,
+      imgScan:true,
+    }
+  },
+
+  mounted() {
+    console.log(window.aa)
+    var that = this
+    axios.post('https://test-paladin.pingan.com.cn:10094/rbpea/api/ea1003/',{
+
+      img: window.aa
+
+    }).then(function (response){
+      if (response.data.response_code == 200) {
+        // alert(response.data.goods_desc[0])
+        if(response.data.goods_desc.length==0){
+          that.loadingpic = 'three'
+        }else{
+          // alert('识别成功')
+          that.loadingpic = 'two',
+          that.imgScan = false
+        }
+        that.keyw = response.data.goods_desc[0].goods,
+        that.indus = response.data.goods_desc[0].industry_name
+        localStorage.setItem("stock_code", response.data.goods_desc[0].stock_code)
+        localStorage.setItem("stock_name", response.data.goods_desc[0].stock_name)
+        localStorage.setItem("fund_code", response.data.goods_desc[0].fund_code)
+        localStorage.setItem("fund_name", response.data.goods_desc[0].fund_name)
+        localStorage.setItem("industry_code", response.data.goods_desc[0].industry_code)
+        localStorage.setItem("industry_name", response.data.goods_desc[0].industry_name)
+      } else{
+        alert('服务器402')
+        that.loaingText = '图片识别失败'
+      }
+    }).then(function(response){
+      let stock_code = localStorage.getItem("stock_code")
+      axios.post('https://test-paladin.pingan.com.cn:10094/rbpea/api/ea1002/',{
+        right:'20190123',
+        stock_ID: stock_code,
+        pre_monthes:12,
+        predict_days:90,
+        number_of_stock:1
+      }).then(function(response){
+        if(response.data.response_code == 402){
+          alert('相似K线接口'+response.data.response_msg)
+        }else if(response.data.response_code == 200){
+          localStorage.setItem("xscode",response.data.out_desc.code[0])
+          localStorage.setItem("xsstartDate", response.data.out_desc.start[0])
+          localStorage.setItem("xsendDate", response.data.out_desc.end[0])
+          localStorage.setItem("xspredict", response.data.out_desc.predict[0])
+          // localStorage.setItem("xspreday", response.data.out_desc.pre_sub_days[0])
+          localStorage.setItem("xsdu", response.data.out_desc.score[0])
+          var t=setTimeout(that.loadingkline = false,1000)
+          
+
+        }else{
+          console.log(response)
+        }
+      }).catch(function(error){
+        console.log("图片识别失败2"+error)
+      })
+    }).catch(function(error){
+      // that.loading = false
+      that.loaingText = '图片识别失败'
+      that.imgScan = false
+      // alert("图片识别失败3"+error)
+    })
+  },
+  methods:{
+    // reidentification(){
+    //   this.$router.push({name:'search'});
+    // }
+    search(){
+      let that = this
+      
+      let inputValue = document.getElementById('shuru1').value
+      if(inputValue.length==6 && isNaN(inputValue) == false){
+        that.loadingshuru = 1
+        let inp
+        if(inputValue.slice(0,1)=='0'){
+          inp = inputValue+".SZ"
+        }else{
+          inp = inputValue+".SH"
+        }
+        
+        localStorage.setItem("stock_code", inp)
+        this.$router.push('/result/stock')
+        axios.post('https://test-paladin.pingan.com.cn:10094/rbpea/api/ea1002/',{
+          right:'20190123',
+          stock_ID: inp,
+          pre_monthes:12,
+          predict_days:90,
+          number_of_stock:1
+        }).then(function(response){
+          if(response.data.response_code == 402){
+            alert('相似K线接口'+response.data.response_msg)
+          }else if(response.data.response_code == 200){
+            that.loadingshuru = 2
+            // that.loadingkline = false
+            localStorage.setItem("xscode",response.data.out_desc.code[0])
+            localStorage.setItem("xsstartDate", response.data.out_desc.start[0])
+            localStorage.setItem("xsendDate", response.data.out_desc.end[0])
+            localStorage.setItem("xspredict", response.data.out_desc.predict[0])
+            // localStorage.setItem("xspreday", response.data.out_desc.pre_sub_days[0])
+            localStorage.setItem("xsdu", response.data.out_desc.score[0])
+          }else{
+            console.log(response)
+          }
+        }).catch(function(error){
+          alert('网络异常')
+        })
+      }else{
+        alert('请输入正确的六位股票代码')
+      }
+
+    }
+  },
+}
+</script>
+
+<style scoped>
+.shuru{
+  text-align: center;
+  padding-top:20px;
+}
+.shuru1{
+  display: inline-block;
+  width:250px;
+  height:40px;
+  padding:0;
+  margin:0;
+  font-size:16px;
+  padding-left:15px;
+}
+.shuru2{
+  display: inline-block;
+  font-size: 16px;
+  line-height: 40px;
+  background-color: #1890ff;
+  color:white;
+  width:80px;
+
+}
+.main{
+  background: #fff;
+}
+.top{
+  background-color: #F6F8FB;
+  padding:20px 20px 20px;
+  display:flex;
+}
+.search{
+  /* float:right; */
+  position:absolute;
+  right:20px;
+  top:20px;
+  color: #1b1b9c;
+  font-size: 16px
+}
+.topright{
+  flex:1;
+  padding: 50px 0 0 0;
+}
+.photo-img-wrap{
+  display: inline-block;
+  height: 160px;
+  max-width: 58%;
+  position: relative;
+  background: #ffffff;
+  overflow: hidden;
+}
+.scan{
+  display: block;
+  background-color: rgba(251, 136, 1, 0.4);
+  background-image: -webkit-gradient(linear , left top, left bottom , from(rgba(255, 129, 0, 0.1)), to(rgba(251, 136, 1, 0.5)));
+  /*background: url("../../assets/scan@2x.png") no-repeat center center;*/
+  width:100%;
+  height:24px;
+  position: absolute;
+  top:0;
+  left:0;
+  animation:mymove 2s infinite
+}
+.photo-img {
+  display: inline-block;
+  height: 160px;
+  max-width: 100%;
+  vertical-align: top;
+  border-radius:10px;
+  padding:8px;
+}
+.key-words {
+  /* display: inline-block; */
+  font-size: 16px;
+  /* padding: 40px 0 0 20px; */
+  /* text-align: center; */
+  padding:4px 0 0 20px;
+}
+.key-words em{
+  display: inline-block;
+  font-size:16px;
+  vertical-align: middle;
+}
+.linkGroup{
+  display: flex;
+  flex-direction: row;
+  height:40px;
+  border-bottom: 1px solid #e8e8e8;
+  margin-bottom: 10px;
+}
+.router-link-active{
+  color: #000!important;
+  border-bottom: 2px solid #727272;
+}
+.link{
+  color: #8c8c8c;
+  flex:1;
+  margin: 0px 20px 0px 20px;
+  text-align: center;
+  line-height: 40px;
+  font-size: 16px;
+}
+/* .search {
+  display: block;
+  font-size: 16px;
+  text-align: left;
+  padding: 0px 39px 16px;
+  color: #1b1b9c;
+  background: #f5f8fb;
+  margin-top: -14px;
+} */
+.loading{
+  display: block;
+  font-size:16px;
+  text-align: center;
+  padding:40px 0 0 0;
+}
+.loading2{
+  display: block;
+  font-size:16px;
+  text-align: center;
+  padding:10px 0 0 0;
+}
+@keyframes mymove
+{
+  from {transform:translateY(0);}
+  to {transform:translateY(200px);}
+}
+</style>
